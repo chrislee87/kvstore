@@ -10,4 +10,5 @@ var (
 	ErrCompressCodec    = errors.New("Error compress codec!")
 	ErrWrongConfig      = errors.New("Wrong config!")
 	ErrFailedCreateFile = errors.New("Failed to create file!")
+	ErrAppendFail       = errors.New("Append with key less than last key in file!")
 )

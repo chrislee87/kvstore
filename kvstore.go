@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -61,12 +62,27 @@ func (kv *KvStore) updateFileHeader() error {
 	kv.Lock()
 	defer kv.Unlock()
 
+	return kv.updateFileHeaderNoLock()
+}
+
+func (kv *KvStore) updateFileHeaderNoLock() error {
 	buf := make([]byte, SizeOfFileHeader)
 	binary.LittleEndian.PutUint64(buf[:8], kv.CompressCodec)
 	binary.LittleEndian.PutUint64(buf[8:16], kv.FileCapacity)
 	binary.LittleEndian.PutUint64(buf[16:], kv.FileDataNums)
 
 	_, err := kv.File.WriteAt(buf, 0)
+	return err
+}
+
+func (kv *KvStore) appendLastIndexNoLock() error {
+	idx := kv.Indexs[len(kv.Indexs)-1]
+	buf := make([]byte, SizeOfOneIndex)
+	binary.LittleEndian.PutUint64(buf[:8], idx.Key)
+	binary.LittleEndian.PutUint64(buf[8:16], idx.Offset)
+	binary.LittleEndian.PutUint64(buf[16:], idx.Size)
+
+	_, err := kv.File.WriteAt(buf, StartOffsetForIndexes+SizeOfOneIndex*(len(kv.Indexs)-1))
 	return err
 }
 
@@ -97,10 +113,53 @@ func (kv *KvStore) loadIndexes() {
 	}
 }
 
-func (kv *KvStore) Get(key int64) []byte {
+func (kv *KvStore) Get(key int64) ([]byte, error) {
+	kv.RLock()
+	defer kv.RUnlock()
 
+	idx := sort.Search(len(kv.Indexs), func(i int) bool { return kv.Indexs[i].Key >= key })
+	if idx == len(kv.Indexs) || kv.Indexs[idx].Key != key {
+		return nil, ErrDataNotFound
+	}
+	offset := kv.Indexs[idx].Offset
+	size := kv.Indexs[idx].Size
+	buf := make([]byte, size)
+	kv.File.ReadAt(buf, offset)
+	return kv.UnCompress(buf), nil
 }
 
 func (kv *KvStore) Append(key int64, buf []byte) error {
+	kv.Lock()
+	defer kv.Unlock()
 
+	if kv.FileDataNums >= kv.FileCapacity {
+		return ErrOutOfCapacity
+	}
+
+	n := len(kv.Indexs)
+	if n > 0 && kv.Indexs[n-1].Key <= key {
+		return ErrAppendFail
+	}
+
+	wb := kv.Compress(buf)
+
+	// FileHeader
+	kv.FileDataNums += 1
+	kv.updateFileHeaderNoLock()
+
+	// Indexes
+	var idx Index
+	idx.Key = key
+	idx.Size = len(wb)
+	if n == 0 {
+		idx.Offset = StartOffsetForIndexes + SizeOfOneIndex*DefaultFileCapacity
+	} else {
+		idx.Offset = kv.Indexs[n-1].Offset + kv.Indexs[n-1].Size
+	}
+	kv.Indexs = append(kv.Indexs, idx)
+	kv.appendLastIndexNoLock()
+
+	// FileBody
+	kv.File.WriteAt(wb, idx.Offset)
+	return nil
 }
