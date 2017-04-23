@@ -1,7 +1,7 @@
 package kvstore
 
 type FileHeader struct {
-	CompressCodec int64
-	FileCapacity  int64
-	FileDataNums  int64
+	CompressCodec uint64
+	FileCapacity  uint64
+	FileDataNums  uint64
 }

@@ -1,6 +1,7 @@
 package kvstore
 
 import (
+	"encoding/binary"
 	"os"
 	"sort"
 	"sync"
@@ -46,7 +47,7 @@ func New(c *Config) (*KvStore, error) {
 	} else {
 		f, err := os.OpenFile(c.FileName, os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
-			return nil, ErrFailedCreateFile
+			return nil, ErrFailedOpenFile
 		}
 		kv.File = f
 		kv.loadFileHeader()
@@ -71,7 +72,7 @@ func (kv *KvStore) updateFileHeaderNoLock() error {
 	binary.LittleEndian.PutUint64(buf[8:16], kv.FileCapacity)
 	binary.LittleEndian.PutUint64(buf[16:], kv.FileDataNums)
 
-	_, err := kv.File.WriteAt(buf, 0)
+	_, err := kv.WriteAt(buf, 0)
 	return err
 }
 
@@ -82,7 +83,7 @@ func (kv *KvStore) appendLastIndexNoLock() error {
 	binary.LittleEndian.PutUint64(buf[8:16], idx.Offset)
 	binary.LittleEndian.PutUint64(buf[16:], idx.Size)
 
-	_, err := kv.File.WriteAt(buf, StartOffsetForIndexes+SizeOfOneIndex*(len(kv.Indexs)-1))
+	_, err := kv.WriteAt(buf, StartOffsetForIndexes+SizeOfOneIndex*(uint64)(len(kv.Indexs)-1))
 	return err
 }
 
@@ -102,8 +103,8 @@ func (kv *KvStore) loadIndexes() {
 	defer kv.RUnlock()
 
 	buf := make([]byte, SizeOfOneIndex*kv.FileDataNums)
-	kv.File.ReadAt(buf, StartOffsetForIndexes)
-	for i := 0; i < kv.FileDataNums; i++ {
+	kv.ReadAt(buf, StartOffsetForIndexes)
+	for i := uint64(0); i < kv.FileDataNums; i++ {
 		idx := Index{}
 		offset := i * SizeOfOneIndex
 		idx.Key = binary.LittleEndian.Uint64(buf[offset : offset+8])
@@ -113,7 +114,7 @@ func (kv *KvStore) loadIndexes() {
 	}
 }
 
-func (kv *KvStore) Get(key int64) ([]byte, error) {
+func (kv *KvStore) Get(key uint64) ([]byte, error) {
 	kv.RLock()
 	defer kv.RUnlock()
 
@@ -124,11 +125,11 @@ func (kv *KvStore) Get(key int64) ([]byte, error) {
 	offset := kv.Indexs[idx].Offset
 	size := kv.Indexs[idx].Size
 	buf := make([]byte, size)
-	kv.File.ReadAt(buf, offset)
+	kv.ReadAt(buf, offset)
 	return kv.UnCompress(buf), nil
 }
 
-func (kv *KvStore) Append(key int64, buf []byte) error {
+func (kv *KvStore) Append(key uint64, buf []byte) error {
 	kv.Lock()
 	defer kv.Unlock()
 
@@ -137,7 +138,7 @@ func (kv *KvStore) Append(key int64, buf []byte) error {
 	}
 
 	n := len(kv.Indexs)
-	if n > 0 && kv.Indexs[n-1].Key <= key {
+	if n > 0 && kv.Indexs[n-1].Key >= key {
 		return ErrAppendFail
 	}
 
@@ -150,7 +151,7 @@ func (kv *KvStore) Append(key int64, buf []byte) error {
 	// Indexes
 	var idx Index
 	idx.Key = key
-	idx.Size = len(wb)
+	idx.Size = uint64(len(wb))
 	if n == 0 {
 		idx.Offset = StartOffsetForIndexes + SizeOfOneIndex*DefaultFileCapacity
 	} else {
@@ -160,6 +161,6 @@ func (kv *KvStore) Append(key int64, buf []byte) error {
 	kv.appendLastIndexNoLock()
 
 	// FileBody
-	kv.File.WriteAt(wb, idx.Offset)
+	kv.WriteAt(wb, idx.Offset)
 	return nil
 }

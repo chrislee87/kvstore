@@ -1,7 +1,7 @@
 package kvstore
 
 type Index struct {
-	Key    int64 // for example, use date: 20160101
-	Offset int64
-	Size   int64
+	Key    uint64 // for example, use date: 20160101
+	Offset uint64
+	Size   uint64
 }
