@@ -52,6 +52,8 @@ func TestCreateEmptyFileAndGet(t *testing.T) {
 	if err != ErrDataNotFound {
 		t.Errorf("Get empty file, return value should be nil!")
 	}
+
+	kv.Close()
 }
 
 func TestAppendAndGet(t *testing.T) {
@@ -126,4 +128,6 @@ func TestAppendAndGet(t *testing.T) {
 	if err != ErrDataNotFound {
 		t.Errorf("key is bigger, should not be found!")
 	}
+
+	kv.Close()
 }

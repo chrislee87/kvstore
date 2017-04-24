@@ -59,6 +59,10 @@ func New(c *Config) (*KvStore, error) {
 	return kv, nil
 }
 
+func (kv *KvStore) Close() error {
+	return kv.File.Close()
+}
+
 func (kv *KvStore) updateFileHeader() error {
 	kv.Lock()
 	defer kv.Unlock()

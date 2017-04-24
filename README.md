@@ -53,6 +53,8 @@ func main() {
 	kv.Append(key3, buf3)
 
 	buf, _ := kv.Get(key1)
+
+	kv.Close()
 }
 
 ```
