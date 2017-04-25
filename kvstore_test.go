@@ -15,15 +15,10 @@ var (
 	keymiss   uint64 = 20150115
 	keymore   uint64 = 20150131
 
-	str0 string = "hello world."
-	str1 string = "hello world 1."
-	str2 string = "hello world 2."
-	str3 string = "hello world 3."
-
-	buf0 []byte = []byte(str0)
-	buf1 []byte = []byte(str1)
-	buf2 []byte = []byte(str2)
-	buf3 []byte = []byte(str3)
+	buf0 []byte = []byte("hello world.")
+	buf1 []byte = []byte("hello world 1.")
+	buf2 []byte = []byte("hello world 2.")
+	buf3 []byte = []byte("hello world 3.")
 )
 
 func TestWrongConfig(t *testing.T) {
