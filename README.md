@@ -54,3 +54,7 @@ func main() {
 }
 
 ```
+
+Discussion
+---------------
+[Discussion](https://forum.golangbridge.org/t/kvstore-kvstore-for-time-series-data-with-indexing-and-data-compression/5218) at Go Forum.
