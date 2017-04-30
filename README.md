@@ -25,7 +25,7 @@ Each datafile contains three parts:
 
 Usages
 ---------------
-```
+```go
 var (
 	key1 uint64 = 20150110
 	key2 uint64 = 20150120
